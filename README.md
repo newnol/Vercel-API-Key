@@ -100,7 +100,7 @@ Server sẽ chạy tại `http://localhost:8000` (hoặc port bạn đã cấu h
 ### Tạo API key mới
 
 ```bash
-python cli.py create-key --name "My Application" --rate-limit 60 --expires 30
+python cli.py create-key --name "My Application" 
 ```
 
 **Options:**

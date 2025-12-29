@@ -386,7 +386,9 @@ async def proxy(path: str, request: Request):
             content={
                 "error": {
                     "message": "No available Vercel API keys with sufficient credit",
-                    "type": "server_error"
+                    "type": "server_error",
+                    "param": None,
+                    "code": None
                 }
             }
         )
@@ -487,7 +489,9 @@ async def proxy(path: str, request: Request):
                 content={
                     "error": {
                         "message": "Gateway timeout - request took too long",
-                        "type": "timeout_error"
+                        "type": "timeout_error",
+                        "param": None,
+                        "code": None
                     }
                 }
             )
@@ -497,7 +501,9 @@ async def proxy(path: str, request: Request):
                 content={
                     "error": {
                         "message": f"Bad gateway: {str(e)}",
-                        "type": "proxy_error"
+                        "type": "proxy_error",
+                        "param": None,
+                        "code": None
                     }
                 }
             )

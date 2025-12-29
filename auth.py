@@ -95,14 +95,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # Admin endpoints require admin secret
         if is_admin_path(path):
             if not await verify_admin_auth(request):
-                return JSONResponse(
-                    status_code=401,
-                    content={
-                        "error": {
-                            "message": "Invalid or missing admin credentials",
-                            "type": "authentication_error"
-                        }
-                    }
+                return create_openai_error_response(
+                    message="Invalid or missing admin credentials",
+                    error_type="authentication_error",
+                    status_code=401
                 )
             return await call_next(request)
         
@@ -111,14 +107,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
         
         if not is_valid:
             status_code = 429 if error_message and "Rate limit" in error_message else 401
-            return JSONResponse(
-                status_code=status_code,
-                content={
-                    "error": {
-                        "message": error_message,
-                        "type": "authentication_error" if status_code == 401 else "rate_limit_error"
-                    }
-                }
+            error_type = "rate_limit_error" if status_code == 429 else "authentication_error"
+            return create_openai_error_response(
+                message=error_message,
+                error_type=error_type,
+                status_code=status_code
             )
         
         # Store API key info in request state for later use
@@ -160,4 +153,5 @@ def create_openai_error_response(message: str, error_type: str, status_code: int
             }
         }
     )
+
 
