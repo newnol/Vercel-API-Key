@@ -8,19 +8,14 @@ services:
     container_name: vercel-load-balancer
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
-      # Admin secret - CHANGE THIS!
-      - ADMIN_SECRET=${ADMIN_SECRET:-change-this-secret-key}
+      # Override/add specific variables
       - PORT=8000
       - HOST=0.0.0.0
       - DATABASE_PATH=/app/data/lb_database.db
       - KEY_LIST_PATH=/app/config/key-list.json
-      # PocketBase configuration
-      - USE_POCKETBASE=${USE_POCKETBASE:-true}
-      - POCKETBASE_URL=${POCKETBASE_URL:-https://base.selfhost.io.vn}
-      - POCKETBASE_COLLECTION=${POCKETBASE_COLLECTION:-Vercel_api_key}
-      - POCKETBASE_EMAIL=${POCKETBASE_EMAIL}
-      - POCKETBASE_PASSWORD=${POCKETBASE_PASSWORD}
     volumes:
       # Persist database
       - ./data:/app/data
