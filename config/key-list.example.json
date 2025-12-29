@@ -1,0 +1,15 @@
+{
+    "keys": [
+        {
+            "name": "Vercel 1",
+            "mail": "your-email@example.com",
+            "api_key": "vck_your_api_key_here"
+        },
+        {
+            "name": "Vercel 2",
+            "mail": "another-email@example.com",
+            "api_key": "vck_another_api_key_here"
+        }
+    ]
+}
+

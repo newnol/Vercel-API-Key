@@ -88,6 +88,8 @@ Thumbs.db
 pocketbase/pb_data/
 pocketbase/pb_migrations/
 
-# Config files with sensitive data (uncomment if needed)
-# config/key-list.json
+# Config files with sensitive data
+config/key-list.json
+config/*.json
+!config/*.example.json
 
