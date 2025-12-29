@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  vercel-load-balancer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vercel-load-balancer
+    ports:
+      - "8000:8000"
+    environment:
+      # Admin secret - CHANGE THIS!
+      - ADMIN_SECRET=${ADMIN_SECRET:-change-this-secret-key}
+      - PORT=8000
+      - HOST=0.0.0.0
+      - DATABASE_PATH=/app/data/lb_database.db
+      - KEY_LIST_PATH=/app/config/key-list.json
+    volumes:
+      # Persist database
+      - ./data:/app/data
+      # Persist key-list.json (optional, if you want to update keys without rebuilding)
+      - ./config/key-list.json:/app/config/key-list.json:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
