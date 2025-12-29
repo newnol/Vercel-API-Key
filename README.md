@@ -27,7 +27,7 @@ pip install -r requirements.txt
 
 ### 2. Cấu hình môi trường
 
-Tạo file `.env` trong thư mục gốc:
+Tạo file `.env` trong thư mục gốc (copy từ `.env.example`):
 
 ```bash
 # Admin secret để truy cập các endpoint /admin/*
@@ -37,11 +37,32 @@ ADMIN_SECRET=your-super-secret-admin-key-here
 # Optional: Cấu hình server
 HOST=0.0.0.0
 PORT=8000
+
+# PocketBase Configuration (recommended)
+USE_POCKETBASE=true
+POCKETBASE_URL=https://base.selfhost.io.vn
+POCKETBASE_COLLECTION=Vercel_api_key
+POCKETBASE_EMAIL=your-email@example.com
+POCKETBASE_PASSWORD=your-password
 ```
 
 ### 3. Chuẩn bị Vercel API Keys
 
-Đảm bảo file `key-list.json` có cấu trúc như sau:
+#### Phương pháp 1: PocketBase (Khuyến nghị)
+
+Server sẽ tự động lấy keys từ PocketBase collection. Cấu trúc collection yêu cầu các fields:
+- `name`: Tên của key
+- `api_key`: Vercel API key (vck_xxxxx)
+- `mail`: Email (optional)
+
+Test kết nối PocketBase:
+```bash
+python tests/test-pocketbase.py
+```
+
+#### Phương pháp 2: File JSON (Fallback)
+
+Nếu không dùng PocketBase hoặc PocketBase fail, server sẽ fallback về file `config/key-list.json`:
 
 ```json
 {
@@ -53,6 +74,11 @@ PORT=8000
         }
     ]
 }
+```
+
+Để tắt PocketBase và chỉ dùng file JSON:
+```bash
+USE_POCKETBASE=false
 ```
 
 ### 4. Khởi tạo database

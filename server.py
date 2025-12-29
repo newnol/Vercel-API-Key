@@ -3,6 +3,10 @@ Vercel AI Gateway Load Balancer Server
 A FastAPI server that acts as a reverse proxy with credit-based load balancing.
 """
 
+# Load environment variables FIRST before any other imports
+from dotenv import load_dotenv
+load_dotenv()
+
 import json
 import asyncio
 import time
@@ -16,21 +20,21 @@ import httpx
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import StreamingResponse, Response, JSONResponse
 from pydantic import BaseModel
-from dotenv import load_dotenv
 
 from database import (
     init_database, create_key, list_keys, get_key_by_id,
     update_key, delete_key, get_key_stats, log_usage
 )
 from auth import AuthMiddleware
-
-load_dotenv()
+from pocketbase_client import get_keys_from_pocketbase
 
 # === Configuration ===
 KEY_LIST_PATH = "config/key-list.json"
+USE_POCKETBASE = os.getenv("USE_POCKETBASE", "true").lower() == "true"
 VERCEL_GATEWAY_URL = "https://ai-gateway.vercel.sh"
 CREDIT_CACHE_TTL = 300  # 5 minutes
 MIN_CREDIT = 0.01
+KEYS_REFRESH_INTERVAL = 300  # Refresh keys from PocketBase every 5 minutes
 
 # === Pydantic Models for Admin API ===
 class CreateKeyRequest(BaseModel):
@@ -51,26 +55,80 @@ class VercelKeyManager:
     def __init__(self):
         self.keys: list[dict] = []
         self._lock = asyncio.Lock()
+        self._keys_last_refresh = 0
         self._load_keys()
     
-    def _load_keys(self):
-        """Load Vercel keys from JSON file."""
+    def _load_keys_from_json(self) -> list[dict]:
+        """Load Vercel keys from JSON file (fallback)."""
         try:
             with open(KEY_LIST_PATH) as f:
                 data = json.load(f)
-            self.keys = [
-                {
-                    "name": k["name"],
-                    "api_key": k["api_key"],
+            return data.get("keys", [])
+        except FileNotFoundError:
+            print(f"⚠️  {KEY_LIST_PATH} not found")
+            return []
+        except Exception as e:
+            print(f"⚠️  Error loading keys from JSON: {e}")
+            return []
+    
+    def _load_keys_from_pocketbase(self) -> list[dict]:
+        """Load Vercel keys from PocketBase."""
+        try:
+            return get_keys_from_pocketbase()
+        except Exception as e:
+            print(f"⚠️  Error loading keys from PocketBase: {e}")
+            return []
+    
+    def _load_keys(self):
+        """Load Vercel keys from PocketBase or JSON file."""
+        raw_keys = []
+        
+        if USE_POCKETBASE:
+            print("📡 Loading keys from PocketBase...")
+            raw_keys = self._load_keys_from_pocketbase()
+            
+            # Fallback to JSON if PocketBase fails
+            if not raw_keys:
+                print("⚠️  PocketBase failed, falling back to JSON file...")
+                raw_keys = self._load_keys_from_json()
+        else:
+            print("📁 Loading keys from JSON file...")
+            raw_keys = self._load_keys_from_json()
+        
+        # Preserve existing credit balances
+        existing_keys_map = {k["api_key"]: k for k in self.keys}
+        
+        self.keys = []
+        for k in raw_keys:
+            api_key = k.get("api_key", "")
+            if not api_key:
+                continue
+                
+            # Preserve credit balance if key already exists
+            if api_key in existing_keys_map:
+                existing = existing_keys_map[api_key]
+                self.keys.append({
+                    "name": k.get("name", "Unknown"),
+                    "api_key": api_key,
+                    "balance": existing.get("balance", 0.0),
+                    "total_used": existing.get("total_used", 0.0),
+                    "updated_at": existing.get("updated_at", 0)
+                })
+            else:
+                self.keys.append({
+                    "name": k.get("name", "Unknown"),
+                    "api_key": api_key,
                     "balance": 0.0,
                     "total_used": 0.0,
                     "updated_at": 0
-                }
-                for k in data["keys"]
-            ]
-        except FileNotFoundError:
-            print(f"Warning: {KEY_LIST_PATH} not found. No Vercel keys loaded.")
-            self.keys = []
+                })
+        
+        self._keys_last_refresh = time.time()
+        print(f"✅ Loaded {len(self.keys)} Vercel keys")
+    
+    def reload_keys(self):
+        """Reload keys from source (PocketBase or JSON)."""
+        self._load_keys()
     
     async def _fetch_credit(self, key: dict) -> None:
         """Fetch credit balance for a single key."""
@@ -90,9 +148,16 @@ class VercelKeyManager:
             print(f"Error fetching credit for {key['name']}: {e}")
     
     async def refresh_all(self):
-        """Refresh credit balance for all keys."""
+        """Refresh credit balance for all keys and optionally reload keys list."""
+        # Reload keys from PocketBase if needed
+        now = time.time()
+        if USE_POCKETBASE and (now - self._keys_last_refresh > KEYS_REFRESH_INTERVAL):
+            print("🔄 Refreshing keys from PocketBase...")
+            self._load_keys()
+        
+        # Refresh credit balances
         await asyncio.gather(*[self._fetch_credit(k) for k in self.keys])
-        print(f"Refreshed credits for {len(self.keys)} Vercel keys")
+        print(f"✅ Refreshed credits for {len(self.keys)} Vercel keys")
     
     async def get_key(self) -> Optional[str]:
         """

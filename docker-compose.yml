@@ -15,6 +15,12 @@ services:
       - HOST=0.0.0.0
       - DATABASE_PATH=/app/data/lb_database.db
       - KEY_LIST_PATH=/app/config/key-list.json
+      # PocketBase configuration
+      - USE_POCKETBASE=${USE_POCKETBASE:-true}
+      - POCKETBASE_URL=${POCKETBASE_URL:-https://base.selfhost.io.vn}
+      - POCKETBASE_COLLECTION=${POCKETBASE_COLLECTION:-Vercel_api_key}
+      - POCKETBASE_EMAIL=${POCKETBASE_EMAIL}
+      - POCKETBASE_PASSWORD=${POCKETBASE_PASSWORD}
     volumes:
       # Persist database
       - ./data:/app/data
