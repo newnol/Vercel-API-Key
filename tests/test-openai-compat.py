@@ -117,9 +117,79 @@ def test_missing_auth():
     
     return response.status_code == 401
 
+def test_streaming():
+    """Test streaming response format using OpenAI SDK"""
+    print("\n🧪 Test 4: Streaming Response (OpenAI SDK)")
+    
+    try:
+        from openai import OpenAI
+        
+        client = OpenAI(
+            api_key=VALID_API_KEY,
+            base_url=f"{BASE_URL}/v1"
+        )
+        
+        print("Making streaming request...")
+        
+        stream = client.chat.completions.create(
+            model="openai/gpt-4o-mini",
+            messages=[{"role": "user", "content": "Count from 1 to 5, one number per line"}],
+            stream=True,
+            max_tokens=50
+        )
+        
+        chunks = []
+        full_content = ""
+        
+        print("\n📋 Stream Chunks:")
+        print("-" * 40)
+        
+        for chunk in stream:
+            chunks.append(chunk)
+            
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if delta and delta.content:
+                    full_content += delta.content
+                    print(f"  📦 chunk: {repr(delta.content)}")
+        
+        print("-" * 40)
+        print(f"\n📝 Full response: {full_content}")
+        
+        # Validate
+        if chunks:
+            first_chunk = chunks[0]
+            
+            # Check object type
+            if first_chunk.object == "chat.completion.chunk":
+                print("✅ Chunk object type correct: 'chat.completion.chunk'")
+            else:
+                print(f"⚠️  Object type: '{first_chunk.object}'")
+            
+            # Check required fields
+            has_id = first_chunk.id is not None
+            has_model = first_chunk.model is not None
+            has_choices = first_chunk.choices is not None
+            
+            if has_id and has_model and has_choices:
+                print("✅ Chunk has all required fields (id, model, choices)")
+            else:
+                print(f"❌ Missing fields - id:{has_id}, model:{has_model}, choices:{has_choices}")
+                return False
+            
+            print(f"✅ Received {len(chunks)} chunks")
+            return True
+        else:
+            print("❌ No chunks received")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Streaming error: {type(e).__name__}: {e}")
+        return False
+
 def test_models_endpoint():
     """Test /v1/models endpoint"""
-    print("\n🧪 Test 4: List Models Endpoint")
+    print("\n🧪 Test 5: List Models Endpoint")
     
     response = requests.get(
         f"{BASE_URL}/v1/models",
@@ -158,6 +228,7 @@ def main():
     results.append(("Chat Completion", test_chat_completion()))
     results.append(("Invalid API Key", test_invalid_api_key()))
     results.append(("Missing Auth", test_missing_auth()))
+    results.append(("Streaming", test_streaming()))
     results.append(("List Models", test_models_endpoint()))
     
     # Summary

@@ -427,11 +427,12 @@ async def proxy(path: str, request: Request):
             model=model
         )
     
-    async with httpx.AsyncClient() as client:
-        try:
-            if is_stream:
-                # Streaming response
-                async def stream_generator():
+    try:
+        if is_stream:
+            # Streaming response - create client that lives for the duration of the stream
+            async def stream_generator():
+                client = httpx.AsyncClient()
+                try:
                     async with client.stream(
                         method=request.method,
                         url=url,
@@ -441,18 +442,21 @@ async def proxy(path: str, request: Request):
                     ) as resp:
                         async for chunk in resp.aiter_bytes():
                             yield chunk
-                
-                return StreamingResponse(
-                    stream_generator(),
-                    media_type="text/event-stream",
-                    headers={
-                        "Cache-Control": "no-cache",
-                        "Connection": "keep-alive",
-                        "X-Accel-Buffering": "no"
-                    }
-                )
-            else:
-                # Regular response
+                finally:
+                    await client.aclose()
+            
+            return StreamingResponse(
+                stream_generator(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no"
+                }
+            )
+        else:
+            # Regular response
+            async with httpx.AsyncClient() as client:
                 resp = await client.request(
                     method=request.method,
                     url=url,
@@ -482,31 +486,31 @@ async def proxy(path: str, request: Request):
                     status_code=resp.status_code,
                     media_type=resp.headers.get("content-type", "application/json")
                 )
-        
-        except httpx.TimeoutException:
-            return JSONResponse(
-                status_code=504,
-                content={
-                    "error": {
-                        "message": "Gateway timeout - request took too long",
-                        "type": "timeout_error",
-                        "param": None,
-                        "code": None
-                    }
+    
+    except httpx.TimeoutException:
+        return JSONResponse(
+            status_code=504,
+            content={
+                "error": {
+                    "message": "Gateway timeout - request took too long",
+                    "type": "timeout_error",
+                    "param": None,
+                    "code": None
                 }
-            )
-        except Exception as e:
-            return JSONResponse(
-                status_code=502,
-                content={
-                    "error": {
-                        "message": f"Bad gateway: {str(e)}",
-                        "type": "proxy_error",
-                        "param": None,
-                        "code": None
-                    }
+            }
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={
+                "error": {
+                    "message": f"Bad gateway: {str(e)}",
+                    "type": "proxy_error",
+                    "param": None,
+                    "code": None
                 }
-            )
+            }
+        )
 
 
 if __name__ == "__main__":
