@@ -1,11 +1,18 @@
 import os
 from openai import OpenAI
- 
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+Vercel_api_key = os.getenv("Vercel_api_key")
+
+
 client = OpenAI(
-    api_key="vck_0GyhZ4bhPplVvBebkyJUwUOLDPRcnGIXRy7OsuFkmuS68iaMQz3NjwV2",
+    api_key=Vercel_api_key,
     base_url='https://ai-gateway.vercel.sh/v1'
 )
- 
+
 response = client.chat.completions.create(
     model='anthropic/claude-sonnet-4.5',
     messages=[

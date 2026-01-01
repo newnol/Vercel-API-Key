@@ -43,6 +43,8 @@ venv.bak/
 .env
 .env.local
 .env.*.local
+tests/.env
+*/.env
 
 # Database
 *.db
@@ -93,3 +95,6 @@ config/key-list.json
 config/*.json
 !config/*.example.json
 
+# Gitleaks reports
+gitleaks-report.json
+*.gitleaks.json
