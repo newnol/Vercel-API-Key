@@ -1,3 +1,8 @@
+---
+sidebar_position: 2
+title: Quick Start
+---
+
 # Quick Start Guide
 
 Hướng dẫn nhanh để bắt đầu sử dụng Vercel AI Gateway Load Balancer trong 5 phút.
@@ -10,17 +15,25 @@ source venv/bin/activate
 
 # Cài đặt dependencies
 pip3 install -r requirements.txt
+
+# Cài đặt pre-commit hooks (bảo mật)
+pip3 install pre-commit
+pre-commit install
 ```
 
 ## Bước 2: Cấu hình
 
-Tạo file `.env`:
+Tạo file `.env` từ template:
 
 ```bash
-ADMIN_SECRET=your-secret-here-change-this
+# Copy từ example
+cp .env.example .env
+
+# Generate ADMIN_SECRET mạnh
+echo "ADMIN_SECRET=$(openssl rand -hex 32)" >> .env
 ```
 
-Đảm bảo file `key-list.json` đã được tạo với các Vercel API keys của bạn.
+Đảm bảo file `config/key-list.json` đã được tạo với các Vercel API keys của bạn (hoặc dùng PocketBase).
 
 ## Bước 3: Khởi tạo Database
 
@@ -105,7 +118,14 @@ python cli.py key-stats <key-id>
 python cli.py delete-key <key-id>
 ```
 
+## 🔒 Security Tips
+
+- ✅ Pre-commit hooks đã được cài đặt sẽ tự động quét secrets
+- ✅ File `.env` đã được gitignore - không lo bị commit nhầm
+- ✅ Luôn dùng ADMIN_SECRET mạnh (generated bằng openssl)
+- ⚠️ Không commit file `config/key-list.json` vào git
+- 📖 Đọc [Security Cleanup Guide](security) nếu cần
+
 ## Xem thêm
 
-Xem file [README.md](README.md) để biết chi tiết đầy đủ.
-
+Xem [Full Documentation](intro) để biết chi tiết đầy đủ.

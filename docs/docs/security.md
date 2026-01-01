@@ -1,3 +1,8 @@
+---
+sidebar_position: 4
+title: Security Cleanup
+---
+
 # 🔒 Hướng Dẫn Bảo Mật - Xóa Secrets Khỏi Git History
 
 ## ⚠️ CẨN TRỌNG: Làm backup trước khi thực hiện!

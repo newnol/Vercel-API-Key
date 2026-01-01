@@ -1,0 +1,14 @@
+[allowlist]
+    description = "Allow documentation and example files"
+    paths = [
+        '''docs/docs/intro.md''',
+        '''docs/i18n/en/docusaurus-plugin-content-docs/current/intro.md''',
+        '''\.example\.json$''',
+        '''\.env\.example$''',
+        '''README\.md$''',
+        '''QUICKSTART\.md$''',
+        '''API\.md$''',
+        '''SECURITY_CLEANUP\.md$''',
+        '''CONTRIBUTING\.md$''',
+        '''tests/test-api-key\.py$'''
+    ]

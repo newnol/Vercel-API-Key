@@ -1,0 +1,46 @@
+{
+  "link.title.Docs": {
+    "message": "Docs",
+    "description": "The title of the footer links column with title=Docs in the footer"
+  },
+  "link.title.Resources": {
+    "message": "Resources",
+    "description": "The title of the footer links column with title=Resources in the footer"
+  },
+  "link.title.More": {
+    "message": "More",
+    "description": "The title of the footer links column with title=More in the footer"
+  },
+  "link.item.label.Quick Start": {
+    "message": "Quick Start",
+    "description": "The label of footer link with label=Quick Start linking to /quickstart"
+  },
+  "link.item.label.API Reference": {
+    "message": "API Reference",
+    "description": "The label of footer link with label=API Reference linking to /api"
+  },
+  "link.item.label.Security": {
+    "message": "Security",
+    "description": "The label of footer link with label=Security linking to /security"
+  },
+  "link.item.label.GitHub": {
+    "message": "GitHub",
+    "description": "The label of footer link with label=GitHub linking to https://github.com/newnol/Vercel-API-Key"
+  },
+  "link.item.label.Issues": {
+    "message": "Issues",
+    "description": "The label of footer link with label=Issues linking to https://github.com/newnol/Vercel-API-Key/issues"
+  },
+  "link.item.label.Contributing": {
+    "message": "Contributing",
+    "description": "The label of footer link with label=Contributing linking to /contributing"
+  },
+  "link.item.label.Project Structure": {
+    "message": "Project Structure",
+    "description": "The label of footer link with label=Project Structure linking to /project-structure"
+  },
+  "copyright": {
+    "message": "Copyright © 2026 Vercel AI Gateway Load Balancer. Built with Docusaurus.",
+    "description": "The footer copyright"
+  }
+}

@@ -1,3 +1,8 @@
+---
+sidebar_position: 3
+title: API Reference
+---
+
 # API Documentation
 
 Tài liệu chi tiết về các API endpoints của Load Balancer Server.
@@ -140,7 +145,7 @@ Liệt kê tất cả API keys.
 }
 ```
 
-### GET /admin/keys/{key_id}
+### GET /admin/keys/\{key_id\}
 
 Lấy chi tiết một API key kèm usage statistics.
 
@@ -180,7 +185,7 @@ Lấy chi tiết một API key kèm usage statistics.
 }
 ```
 
-### PATCH /admin/keys/{key_id}
+### PATCH /admin/keys/\{key_id\}
 
 Cập nhật một API key.
 
@@ -216,7 +221,7 @@ Cập nhật một API key.
 }
 ```
 
-### DELETE /admin/keys/{key_id}
+### DELETE /admin/keys/\{key_id\}
 
 Xóa một API key và tất cả usage logs liên quan.
 
@@ -232,7 +237,7 @@ Xóa một API key và tất cả usage logs liên quan.
 
 ## Proxy Endpoints
 
-### ALL /v1/{path}
+### ALL /v1/\{path\}
 
 Proxy tất cả requests đến Vercel AI Gateway.
 
@@ -240,7 +245,7 @@ Proxy tất cả requests đến Vercel AI Gateway.
 
 **Behavior:**
 - Tự động chọn Vercel key tốt nhất dựa trên balance
-- Forward request đến `https://ai-gateway.vercel.sh/v1/{path}`
+- Forward request đến `https://ai-gateway.vercel.sh/v1/\{path\}`
 - Hỗ trợ streaming cho chat completions
 - Log usage sau mỗi request thành công
 
@@ -370,6 +375,3 @@ Server tự động chọn Vercel key dựa trên:
 3. Key có balance cao hơn có xác suất được chọn cao hơn
 
 Credit balance được cache trong 5 phút và tự động refresh định kỳ.
-
-
-

@@ -51,13 +51,13 @@ class UpdateKeyRequest(BaseModel):
 # === Vercel Key Manager ===
 class VercelKeyManager:
     """Manages Vercel API keys and their credit balances."""
-    
+
     def __init__(self):
         self.keys: list[dict] = []
         self._lock = asyncio.Lock()
         self._keys_last_refresh = 0
         self._load_keys()
-    
+
     def _load_keys_from_json(self) -> list[dict]:
         """Load Vercel keys from JSON file (fallback)."""
         try:
@@ -70,7 +70,7 @@ class VercelKeyManager:
         except Exception as e:
             print(f"⚠️  Error loading keys from JSON: {e}")
             return []
-    
+
     def _load_keys_from_pocketbase(self) -> list[dict]:
         """Load Vercel keys from PocketBase."""
         try:
@@ -78,15 +78,15 @@ class VercelKeyManager:
         except Exception as e:
             print(f"⚠️  Error loading keys from PocketBase: {e}")
             return []
-    
+
     def _load_keys(self):
         """Load Vercel keys from PocketBase or JSON file."""
         raw_keys = []
-        
+
         if USE_POCKETBASE:
             print("📡 Loading keys from PocketBase...")
             raw_keys = self._load_keys_from_pocketbase()
-            
+
             # Fallback to JSON if PocketBase fails
             if not raw_keys:
                 print("⚠️  PocketBase failed, falling back to JSON file...")
@@ -94,16 +94,16 @@ class VercelKeyManager:
         else:
             print("📁 Loading keys from JSON file...")
             raw_keys = self._load_keys_from_json()
-        
+
         # Preserve existing credit balances
         existing_keys_map = {k["api_key"]: k for k in self.keys}
-        
+
         self.keys = []
         for k in raw_keys:
             api_key = k.get("api_key", "")
             if not api_key:
                 continue
-                
+
             # Preserve credit balance if key already exists
             if api_key in existing_keys_map:
                 existing = existing_keys_map[api_key]
@@ -122,14 +122,14 @@ class VercelKeyManager:
                     "total_used": 0.0,
                     "updated_at": 0
                 })
-        
+
         self._keys_last_refresh = time.time()
         print(f"✅ Loaded {len(self.keys)} Vercel keys")
-    
+
     def reload_keys(self):
         """Reload keys from source (PocketBase or JSON)."""
         self._load_keys()
-    
+
     async def _fetch_credit(self, key: dict) -> None:
         """Fetch credit balance for a single key."""
         try:
@@ -146,7 +146,7 @@ class VercelKeyManager:
                     key["updated_at"] = time.time()
         except Exception as e:
             print(f"Error fetching credit for {key['name']}: {e}")
-    
+
     async def refresh_all(self):
         """Refresh credit balance for all keys and optionally reload keys list."""
         # Reload keys from PocketBase if needed
@@ -154,11 +154,11 @@ class VercelKeyManager:
         if USE_POCKETBASE and (now - self._keys_last_refresh > KEYS_REFRESH_INTERVAL):
             print("🔄 Refreshing keys from PocketBase...")
             self._load_keys()
-        
+
         # Refresh credit balances
         await asyncio.gather(*[self._fetch_credit(k) for k in self.keys])
         print(f"✅ Refreshed credits for {len(self.keys)} Vercel keys")
-    
+
     async def get_key(self) -> Optional[str]:
         """
         Select a Vercel key using weighted random based on balance.
@@ -166,23 +166,23 @@ class VercelKeyManager:
         """
         async with self._lock:
             now = time.time()
-            
+
             # Refresh stale keys
             for key in self.keys:
                 if now - key["updated_at"] > CREDIT_CACHE_TTL:
                     await self._fetch_credit(key)
-            
+
             # Filter keys with sufficient balance
             available = [k for k in self.keys if k["balance"] > MIN_CREDIT]
-            
+
             if not available:
                 return None
-            
+
             # Weighted random selection
             total = sum(k["balance"] for k in available)
             if total == 0:
                 return random.choice(available)["api_key"]
-            
+
             r = random.uniform(0, total)
             cumulative = 0
             for key in available:
@@ -190,9 +190,9 @@ class VercelKeyManager:
                 if r <= cumulative:
                     print(f"Selected Vercel key: {key['name']} (${key['balance']:.4f})")
                     return key["api_key"]
-            
+
             return available[-1]["api_key"]
-    
+
     def get_status(self) -> list[dict]:
         """Get status of all Vercel keys."""
         return [
@@ -215,20 +215,20 @@ async def lifespan(app: FastAPI):
     # Initialize database
     await init_database()
     print("Database initialized")
-    
+
     # Refresh Vercel key credits
     await vercel_key_manager.refresh_all()
-    
+
     # Start background refresh task
     async def periodic_refresh():
         while True:
             await asyncio.sleep(CREDIT_CACHE_TTL)
             await vercel_key_manager.refresh_all()
-    
+
     task = asyncio.create_task(periodic_refresh())
-    
+
     yield
-    
+
     # Cleanup
     task.cancel()
 
@@ -274,7 +274,7 @@ async def admin_create_key(req: CreateKeyRequest):
         rate_limit=req.rate_limit,
         expires_in_days=req.expires_in_days
     )
-    
+
     return {
         "message": "API key created successfully",
         "key": raw_key,  # Only shown once!
@@ -313,9 +313,9 @@ async def admin_get_key(key_id: str):
     api_key = await get_key_by_id(key_id)
     if not api_key:
         raise HTTPException(status_code=404, detail="Key not found")
-    
+
     stats = await get_key_stats(key_id)
-    
+
     return {
         "key_info": {
             "id": api_key.id,
@@ -335,13 +335,13 @@ async def admin_update_key(key_id: str, req: UpdateKeyRequest):
     existing = await get_key_by_id(key_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Key not found")
-    
+
     # Calculate expires_at if expires_in_days provided
     expires_at = None
     if req.expires_in_days is not None:
         if req.expires_in_days > 0:
             expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=req.expires_in_days)
-    
+
     updated = await update_key(
         key_id=key_id,
         name=req.name,
@@ -349,7 +349,7 @@ async def admin_update_key(key_id: str, req: UpdateKeyRequest):
         is_active=req.is_active,
         expires_at=expires_at
     )
-    
+
     return {
         "message": "Key updated successfully",
         "key_info": {
@@ -367,7 +367,7 @@ async def admin_delete_key(key_id: str):
     success = await delete_key(key_id)
     if not success:
         raise HTTPException(status_code=404, detail="Key not found")
-    
+
     return {"message": "Key deleted successfully", "key_id": key_id}
 
 # === Passthrough Proxy ===
@@ -379,7 +379,7 @@ async def proxy(path: str, request: Request):
     """
     # Get Vercel API key
     vercel_api_key = await vercel_key_manager.get_key()
-    
+
     if not vercel_api_key:
         return JSONResponse(
             status_code=503,
@@ -392,22 +392,22 @@ async def proxy(path: str, request: Request):
                 }
             }
         )
-    
+
     # Clone headers, replace Authorization with Vercel key
     headers = {
         k: v for k, v in request.headers.items()
         if k.lower() not in ("host", "authorization", "content-length")
     }
     headers["Authorization"] = f"Bearer {vercel_api_key}"
-    
+
     # Build URL with query params
     url = f"{VERCEL_GATEWAY_URL}/{path}"
     if request.query_params:
         url += f"?{request.query_params}"
-    
+
     # Get request body
     body = await request.body()
-    
+
     # Check if streaming is requested
     is_stream = False
     model = None
@@ -418,7 +418,7 @@ async def proxy(path: str, request: Request):
             model = data.get("model")
         except:
             pass
-    
+
     # Log usage with model info
     if hasattr(request.state, "api_key") and request.state.api_key:
         await log_usage(
@@ -426,7 +426,7 @@ async def proxy(path: str, request: Request):
             endpoint=f"/{path}",
             model=model
         )
-    
+
     try:
         if is_stream:
             # Streaming response - create client that lives for the duration of the stream
@@ -444,7 +444,7 @@ async def proxy(path: str, request: Request):
                             yield chunk
                 finally:
                     await client.aclose()
-            
+
             return StreamingResponse(
                 stream_generator(),
                 media_type="text/event-stream",
@@ -464,7 +464,7 @@ async def proxy(path: str, request: Request):
                     content=body,
                     timeout=300
                 )
-                
+
                 # Try to extract token usage for logging
                 if hasattr(request.state, "api_key") and request.state.api_key:
                     try:
@@ -480,13 +480,13 @@ async def proxy(path: str, request: Request):
                                 )
                     except:
                         pass
-                
+
                 return Response(
                     content=resp.content,
                     status_code=resp.status_code,
                     media_type=resp.headers.get("content-type", "application/json")
                 )
-    
+
     except httpx.TimeoutException:
         return JSONResponse(
             status_code=504,
@@ -515,10 +515,9 @@ async def proxy(path: str, request: Request):
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     port = int(os.getenv("PORT", 8000))
     host = os.getenv("HOST", "0.0.0.0")
-    
+
     print(f"Starting Load Balancer on {host}:{port}")
     uvicorn.run(app, host=host, port=port)
-

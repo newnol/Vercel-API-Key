@@ -61,7 +61,7 @@ async def init_database():
                 is_active INTEGER DEFAULT 1
             )
         """)
-        
+
         # Create usage_logs table
         await db.execute("""
             CREATE TABLE IF NOT EXISTS usage_logs (
@@ -74,12 +74,12 @@ async def init_database():
                 FOREIGN KEY (key_id) REFERENCES api_keys(id)
             )
         """)
-        
+
         # Create indexes for better performance
         await db.execute("CREATE INDEX IF NOT EXISTS idx_usage_key_id ON usage_logs(key_id)")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_usage_timestamp ON usage_logs(timestamp)")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_key_hash ON api_keys(key_hash)")
-        
+
         await db.commit()
 
 
@@ -98,10 +98,10 @@ async def create_key(
     key_hash = hash_key(raw_key)
     created_at = datetime.now(timezone.utc).replace(tzinfo=None)
     expires_at = None
-    
+
     if expires_in_days:
         expires_at = created_at + timedelta(days=expires_in_days)
-    
+
     async with aiosqlite.connect(DATABASE_PATH) as db:
         await db.execute(
             """
@@ -119,7 +119,7 @@ async def create_key(
             )
         )
         await db.commit()
-    
+
     api_key = APIKey(
         id=key_id,
         key_hash=key_hash,
@@ -129,7 +129,7 @@ async def create_key(
         rate_limit=rate_limit,
         is_active=True
     )
-    
+
     return raw_key, api_key
 
 
@@ -139,7 +139,7 @@ async def validate_key(raw_key: str) -> Optional[APIKey]:
     Returns None if key is invalid, expired, or inactive.
     """
     key_hash = hash_key(raw_key)
-    
+
     async with aiosqlite.connect(DATABASE_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
@@ -147,21 +147,21 @@ async def validate_key(raw_key: str) -> Optional[APIKey]:
             (key_hash,)
         ) as cursor:
             row = await cursor.fetchone()
-            
+
             if not row:
                 return None
-            
+
             # Check if active
             if not row["is_active"]:
                 return None
-            
+
             # Check expiry
             expires_at = None
             if row["expires_at"]:
                 expires_at = datetime.fromisoformat(row["expires_at"])
                 if expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
                     return None
-            
+
             return APIKey(
                 id=row["id"],
                 key_hash=row["key_hash"],
@@ -182,14 +182,14 @@ async def get_key_by_id(key_id: str) -> Optional[APIKey]:
             (key_id,)
         ) as cursor:
             row = await cursor.fetchone()
-            
+
             if not row:
                 return None
-            
+
             expires_at = None
             if row["expires_at"]:
                 expires_at = datetime.fromisoformat(row["expires_at"])
-            
+
             return APIKey(
                 id=row["id"],
                 key_hash=row["key_hash"],
@@ -207,13 +207,13 @@ async def list_keys() -> list[APIKey]:
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT * FROM api_keys ORDER BY created_at DESC") as cursor:
             rows = await cursor.fetchall()
-            
+
             keys = []
             for row in rows:
                 expires_at = None
                 if row["expires_at"]:
                     expires_at = datetime.fromisoformat(row["expires_at"])
-                
+
                 keys.append(APIKey(
                     id=row["id"],
                     key_hash=row["key_hash"],
@@ -223,7 +223,7 @@ async def list_keys() -> list[APIKey]:
                     rate_limit=row["rate_limit"],
                     is_active=bool(row["is_active"])
                 ))
-            
+
             return keys
 
 
@@ -238,35 +238,35 @@ async def update_key(
     # Build update query dynamically
     updates = []
     params = []
-    
+
     if name is not None:
         updates.append("name = ?")
         params.append(name)
-    
+
     if rate_limit is not None:
         updates.append("rate_limit = ?")
         params.append(rate_limit)
-    
+
     if is_active is not None:
         updates.append("is_active = ?")
         params.append(1 if is_active else 0)
-    
+
     if expires_at is not None:
         updates.append("expires_at = ?")
         params.append(expires_at.isoformat())
-    
+
     if not updates:
         return await get_key_by_id(key_id)
-    
+
     params.append(key_id)
-    
+
     async with aiosqlite.connect(DATABASE_PATH) as db:
         await db.execute(
             f"UPDATE api_keys SET {', '.join(updates)} WHERE id = ?",
             params
         )
         await db.commit()
-    
+
     return await get_key_by_id(key_id)
 
 
@@ -275,11 +275,11 @@ async def delete_key(key_id: str) -> bool:
     async with aiosqlite.connect(DATABASE_PATH) as db:
         # Delete usage logs first
         await db.execute("DELETE FROM usage_logs WHERE key_id = ?", (key_id,))
-        
+
         # Delete the key
         cursor = await db.execute("DELETE FROM api_keys WHERE id = ?", (key_id,))
         await db.commit()
-        
+
         return cursor.rowcount > 0
 
 
@@ -304,11 +304,11 @@ async def log_usage(
 async def get_request_count_in_window(key_id: str, window_seconds: int = 60) -> int:
     """Get the number of requests made by a key in the given time window."""
     window_start = (datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=window_seconds)).isoformat()
-    
+
     async with aiosqlite.connect(DATABASE_PATH) as db:
         async with db.execute(
             """
-            SELECT COUNT(*) FROM usage_logs 
+            SELECT COUNT(*) FROM usage_logs
             WHERE key_id = ? AND timestamp > ?
             """,
             (key_id, window_start)
@@ -321,7 +321,7 @@ async def get_key_stats(key_id: str) -> dict:
     """Get usage statistics for a key."""
     async with aiosqlite.connect(DATABASE_PATH) as db:
         db.row_factory = aiosqlite.Row
-        
+
         # Total requests
         async with db.execute(
             "SELECT COUNT(*) as count FROM usage_logs WHERE key_id = ?",
@@ -329,7 +329,7 @@ async def get_key_stats(key_id: str) -> dict:
         ) as cursor:
             row = await cursor.fetchone()
             total_requests = row["count"]
-        
+
         # Total tokens
         async with db.execute(
             "SELECT SUM(tokens_used) as total FROM usage_logs WHERE key_id = ? AND tokens_used IS NOT NULL",
@@ -337,23 +337,23 @@ async def get_key_stats(key_id: str) -> dict:
         ) as cursor:
             row = await cursor.fetchone()
             total_tokens = row["total"] or 0
-        
+
         # Requests by endpoint
         async with db.execute(
             """
-            SELECT endpoint, COUNT(*) as count 
-            FROM usage_logs WHERE key_id = ? 
+            SELECT endpoint, COUNT(*) as count
+            FROM usage_logs WHERE key_id = ?
             GROUP BY endpoint
             """,
             (key_id,)
         ) as cursor:
             rows = await cursor.fetchall()
             by_endpoint = {row["endpoint"]: row["count"] for row in rows}
-        
+
         # Requests by model
         async with db.execute(
             """
-            SELECT model, COUNT(*) as count 
+            SELECT model, COUNT(*) as count
             FROM usage_logs WHERE key_id = ? AND model IS NOT NULL
             GROUP BY model
             """,
@@ -361,7 +361,7 @@ async def get_key_stats(key_id: str) -> dict:
         ) as cursor:
             rows = await cursor.fetchall()
             by_model = {row["model"]: row["count"] for row in rows}
-        
+
         # Recent requests (last 10)
         async with db.execute(
             """
@@ -380,7 +380,7 @@ async def get_key_stats(key_id: str) -> dict:
                 }
                 for row in rows
             ]
-        
+
         return {
             "total_requests": total_requests,
             "total_tokens": total_tokens,
@@ -395,4 +395,3 @@ def init_database_sync():
     """Synchronous wrapper for init_database."""
     import asyncio
     asyncio.run(init_database())
-

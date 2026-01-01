@@ -31,4 +31,3 @@ echo ""
 
 # Start server
 python3 server.py
-

@@ -5,7 +5,7 @@ repos:
       - id: gitleaks
         name: gitleaks
         description: Detect hardcoded secrets using Gitleaks
-        entry: gitleaks protect --verbose --redact --staged
+        entry: gitleaks protect --verbose --redact --staged --config gitleaks.toml
         language: golang
         pass_filenames: false
 
@@ -16,6 +16,7 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files
+        args: ['--maxkb=1000']
       - id: check-merge-conflict
       - id: detect-private-key
         exclude: ^(tests/|config/.*\.example\.json)
