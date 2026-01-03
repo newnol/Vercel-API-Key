@@ -7,6 +7,10 @@ import os
 import httpx
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Configuration from environment variables
 POCKETBASE_URL = os.getenv("POCKETBASE_URL", "https://base.selfhost.io.vn")
@@ -153,6 +157,80 @@ class PocketBaseClient:
                 return self._keys_cache
             return []
 
+    def fetch_full_records_sync(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
+        """
+        Fetch full Vercel API key records from PocketBase (synchronous).
+        Returns records with all fields including IDs.
+        """
+        # Get auth token
+        token = self._get_token()
+        if not token:
+            return []
+
+        try:
+            url = f"{self.api_base}/records"
+            all_records = []
+            page = 1
+            per_page = 100
+
+            with httpx.Client(timeout=30.0) as client:
+                while True:
+                    params = {"page": page, "perPage": per_page}
+                    response = client.get(url, headers=self._get_headers(), params=params)
+
+                    if response.status_code == 200:
+                        data = response.json()
+                        items = data.get("items", [])
+                        all_records.extend(items)
+
+                        total_pages = data.get("totalPages", 1)
+                        if page >= total_pages or len(items) < per_page:
+                            break
+                        page += 1
+                    elif response.status_code == 401:
+                        # Token expired, refresh
+                        print("⚠️  Token expired, refreshing...")
+                        self._token = None
+                        token = self._get_token()
+                        if not token:
+                            break
+                        continue
+                    else:
+                        print(f"❌ Failed to fetch records: {response.status_code}")
+                        break
+
+            print(f"✅ Fetched {len(all_records)} full records from PocketBase")
+            return all_records
+
+        except Exception as e:
+            print(f"❌ Error fetching full records from PocketBase: {e}")
+            return []
+
+    def update_key_sync(self, record_id: str, data: Dict[str, Any]) -> bool:
+        """
+        Update a key record in PocketBase (synchronous).
+        """
+        # Get auth token
+        token = self._get_token()
+        if not token:
+            print("❌ Cannot update: authentication failed")
+            return False
+
+        try:
+            url = f"{self.api_base}/records/{record_id}"
+            with httpx.Client(timeout=10.0) as client:
+                response = client.patch(url, headers=self._get_headers(), json=data)
+
+                if response.status_code == 200:
+                    print(f"✅ Updated key {record_id}")
+                    return True
+                else:
+                    print(f"❌ Failed to update key {record_id}: {response.status_code} - {response.text}")
+                    return False
+        except Exception as e:
+            print(f"❌ Error updating key {record_id}: {e}")
+            return False
+
     def test_connection(self) -> bool:
         """Test connection to PocketBase."""
         try:
@@ -170,3 +248,8 @@ pocketbase_client = PocketBaseClient()
 def get_keys_from_pocketbase() -> List[Dict[str, Any]]:
     """Helper function to get keys from PocketBase."""
     return pocketbase_client.fetch_keys_sync()
+
+
+def get_full_records_from_pocketbase() -> List[Dict[str, Any]]:
+    """Helper function to get full records from PocketBase (including IDs)."""
+    return pocketbase_client.fetch_full_records_sync()

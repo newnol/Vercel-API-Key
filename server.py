@@ -416,7 +416,25 @@ async def proxy(path: str, request: Request):
             data = json.loads(body)
             is_stream = data.get("stream", False)
             model = data.get("model")
-        except:
+
+            # Handle -thinking models
+            if model and isinstance(model, str) and model.endswith("-thinking"):
+                # Remove -thinking suffix
+                data["model"] = model[:-9]
+
+                # Add reasoning parameters
+                # Note: In OpenAI SDK, extra_body merges into the root.
+                # So we add 'reasoning' directly to the payload.
+                data["reasoning"] = {
+                    "effort": "medium",
+                    "enabled": True
+                }
+
+                # Re-serialize body
+                body = json.dumps(data).encode("utf-8")
+
+        except Exception as e:
+            print(f"Error processing request body: {e}")
             pass
 
     # Log usage with model info

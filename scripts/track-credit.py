@@ -8,7 +8,7 @@ load_dotenv()
 total = 0
 balance = 0
 
-with open("key-list.json", "r") as f:
+with open("config/key-list.json", "r") as f:
     key_list = json.load(f)
 
 for key in key_list["keys"]:

@@ -14,10 +14,20 @@ client = OpenAI(
 )
 
 response = client.chat.completions.create(
-    model='anthropic/claude-sonnet-4.5',
+    model='openai/gpt-5',
+    extra_body={
+        'reasoning': {
+            "budget_tokens": 1024,
+            'enabled': True
+        }
+    },
     messages=[
         {'role': 'user', 'content': 'Hello, world!'}
     ]
 )
 
-print(response.choices[0].message)
+completion=response
+
+print('Reasoning:', completion.choices[0].message.reasoning)
+print('Answer:', completion.choices[0].message.content)
+print('Reasoning tokens:', completion.usage.completion_tokens_details.reasoning_tokens)
