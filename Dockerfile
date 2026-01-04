@@ -1,20 +1,23 @@
+# syntax=docker/dockerfile:1
 # Multi-stage build for optimized Docker image
 FROM python:3.13-slim as builder
 
 # Set working directory
 WORKDIR /app
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install build dependencies with cache
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
     gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
+    g++
 
 # Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --user -r requirements.txt
+# Install Python dependencies with cache
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --user -r requirements.txt
 
 # Final stage
 FROM python:3.13-slim

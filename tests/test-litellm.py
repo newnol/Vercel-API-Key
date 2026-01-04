@@ -33,21 +33,30 @@ def test_litellm_thinking():
             messages=[
                 {
                     "role": "user",
-                    "content": "What is the capital of France? Think about it."
+                    "content": "What is 2+2? Think about it."
                 }
             ],
-            stream=False
+            stream=True
         )
 
         print("\n✅ LiteLLM Request Successful!")
+        print("\n--- Stream Output ---")
 
-        # Convert ModelResponse to dict for printing
-        response_dict = response.model_dump() if hasattr(response, 'model_dump') else dict(response)
-        print_json(response_dict, "LiteLLM Response")
+        for chunk in response:
+            delta = chunk.choices[0].delta
+            content = delta.content
+            reasoning = getattr(delta, "reasoning_content", None) or getattr(delta, "reasoning", None)
 
-        # Check if reasoning is present in the message content or extra fields
-        # Note: The server injects reasoning into the request to Vercel.
-        # The response from Vercel (Claude) usually contains the reasoning in the content
+            if content:
+                print(content, end="", flush=True)
+            if reasoning:
+                # Print reasoning in a different way to distinguish?
+                # For now just print it to stderr or log it
+                pass
+
+        print("\n[DONE]")
+
+    except Exception as e:
         # or as a separate field depending on how Vercel/Claude returns it.
         # In the previous user output, we saw "reasoning" field in the message object.
 

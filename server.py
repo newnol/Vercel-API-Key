@@ -411,6 +411,7 @@ async def proxy(path: str, request: Request):
     # Check if streaming is requested
     is_stream = False
     model = None
+    is_thinking_model = False
     if body:
         try:
             data = json.loads(body)
@@ -419,6 +420,7 @@ async def proxy(path: str, request: Request):
 
             # Handle -thinking models
             if model and isinstance(model, str) and model.endswith("-thinking"):
+                is_thinking_model = True
                 # Remove -thinking suffix
                 data["model"] = model[:-9]
 
@@ -450,6 +452,9 @@ async def proxy(path: str, request: Request):
             # Streaming response - create client that lives for the duration of the stream
             async def stream_generator():
                 client = httpx.AsyncClient()
+                has_started_thinking = False
+                has_finished_thinking = False
+
                 try:
                     async with client.stream(
                         method=request.method,
@@ -458,8 +463,63 @@ async def proxy(path: str, request: Request):
                         content=body,
                         timeout=300  # 5 minutes for long generations
                     ) as resp:
-                        async for chunk in resp.aiter_bytes():
-                            yield chunk
+                        if is_thinking_model:
+                            async for line in resp.aiter_lines():
+                                if not line.strip():
+                                    continue
+
+                                if line.startswith("data: "):
+                                    if line.strip() == "data: [DONE]":
+                                        if has_started_thinking and not has_finished_thinking:
+                                            yield f'data: {json.dumps({"choices":[{"index":0,"delta":{"content":"</think>"}}]})}\n\n'.encode('utf-8')
+                                        yield line.encode('utf-8') + b"\n\n"
+                                        continue
+
+                                    try:
+                                        json_str = line[6:]
+                                        data = json.loads(json_str)
+                                        choices = data.get("choices", [])
+                                        if not choices:
+                                            yield line.encode('utf-8') + b"\n\n"
+                                            continue
+
+                                        delta = choices[0].get("delta", {})
+                                        # Check for reasoning_content or reasoning
+                                        reasoning = delta.get("reasoning_content") or delta.get("reasoning")
+                                        content = delta.get("content")
+
+                                        # Logic to inject <think> tags
+                                        if reasoning:
+                                            if not has_started_thinking:
+                                                # Send <think>
+                                                yield f'data: {json.dumps({"choices":[{"index":0,"delta":{"content":"<think>"}}]})}\n\n'.encode('utf-8')
+                                                has_started_thinking = True
+
+                                            # Send reasoning as content, but also keep original reasoning_content if present
+                                            # This ensures compatibility with both clients that expect <think> tags
+                                            # and clients that support reasoning_content field (like LiteLLM)
+                                            new_data = data
+                                            new_data["choices"][0]["delta"]["content"] = reasoning
+                                            yield f'data: {json.dumps(new_data)}\n\n'.encode('utf-8')
+                                            continue
+
+                                        if content:
+                                            if has_started_thinking and not has_finished_thinking:
+                                                # Send </think>
+                                                yield f'data: {json.dumps({"choices":[{"index":0,"delta":{"content":"</think>"}}]})}\n\n'.encode('utf-8')
+                                                has_finished_thinking = True
+
+                                        yield line.encode('utf-8') + b"\n\n"
+
+                                    except Exception as e:
+                                        # If parsing fails, just yield original line
+                                        yield line.encode('utf-8') + b"\n\n"
+                                else:
+                                    yield line.encode('utf-8') + b"\n\n"
+                        else:
+                            # Normal streaming for non-thinking models
+                            async for chunk in resp.aiter_bytes():
+                                yield chunk
                 finally:
                     await client.aclose()
 
